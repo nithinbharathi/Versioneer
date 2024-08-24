@@ -9,6 +9,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -79,7 +81,7 @@ public class Versioneer {
 		
 		String parentCommit = readParentCommit();
 		
-		CommitData commitData = new CommitData(message, changedFiles, parentCommit);
+		CommitData commitData = new CommitData(message, changedFiles, parentCommit, LocalDateTime.now());
 		String commitHash = hashContent(commitData.toString());
 		Path commitObjectPath = objectsPath.resolve(commitHash);
 		writeCommitData(commitObjectPath, commitData);
@@ -93,7 +95,11 @@ public class Versioneer {
 		String parentCommit = readParentCommit();
 		CommitData commitData = readCommitData(objectsPath.resolve(parentCommit));
 		while(commitData != null) {
-			System.out.println(commitData.getChangedFiles() +" "+commitData.getMessage());
+			System.out.println("Changed Files: "+commitData.getChangedFiles() 
+								+"\nCommit Message: "+commitData.getMessage()
+								+"\nCreated Time: "+commitData.getCreatedTime()
+								+"\n-----------------------------------------------------");
+			
 			if(commitData.getParentCommit() != null && commitData.getParentCommit().length() != 0)
 				commitData = readCommitData(objectsPath.resolve(commitData.getParentCommit()));
 			else 
@@ -197,14 +203,24 @@ class CommitData implements Serializable {
     private String message;
     private List<String> changedFiles;
     private String parentCommit;
+    private LocalDateTime createdTime;
 
-    public CommitData(String message, List<String> changedFiles, String parentCommit) {
+    public CommitData(String message, List<String> changedFiles, String parentCommit, LocalDateTime createdTime) {
         this.message = message;
         this.changedFiles = changedFiles;
         this.parentCommit = parentCommit;
+        this.createdTime = createdTime;
     }
 
-    public String getMessage() {
+    public LocalDateTime getCreatedTime() {
+		return createdTime;
+	}
+
+	public void setCreatedTime(LocalDateTime createdTime) {
+		this.createdTime = createdTime;
+	}
+
+	public String getMessage() {
 		return message;
 	}
 
