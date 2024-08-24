@@ -3,6 +3,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -66,6 +67,29 @@ public class Versioneer {
 		}
 	}
 	
+	public void commit(String message) {
+		List<String> changedFiles = readStagingArea();
+		String parentCommit = readParentCommit();
+		
+		CommitData commitData = new CommitData(message, changedFiles, parentCommit);
+		String commitHash = hashContent(commitData.toString());
+		Path commitObjectPath = objectsPath.resolve(commitHash);
+		writeCommitData(commitObjectPath, commitData);
+		writeStagingArea(new ArrayList<String>());
+		try {Files.writeString(headPath, commitHash);}catch(Exception e) {};
+		
+		CommitData cdata = readCommitData(commitObjectPath);
+	
+	}
+	
+	private String readParentCommit() {
+		try {
+			return Files.readString(headPath);
+		}catch(Exception e) {
+			return null;
+		}
+	}
+	
 	//The method generates the SHA hash of the content passed as a parameter.
 	private String hashContent(String content) {
         StringBuilder hexString = new StringBuilder();
@@ -121,8 +145,53 @@ public class Versioneer {
 		try (FileOutputStream fileOut = new FileOutputStream(this.stagingAreaPath.toString());
 	            ObjectOutputStream out = new ObjectOutputStream(fileOut)) {
 	            out.writeObject(stagingAreaChanges);
-	        } catch (IOException e) {
+	    } catch (IOException e) {
+	            e.printStackTrace();
+	    }
+	}
+	
+	@SuppressWarnings("unchecked")
+	private CommitData readCommitData(Path path) {
+		CommitData commitData = new CommitData("",null,"");
+		try (FileInputStream fileIn = new FileInputStream(path.toString());
+	             ObjectInputStream in = new ObjectInputStream(fileIn)) {
+			commitData = (CommitData)in.readObject();
+	        } catch (IOException | ClassNotFoundException e) {
 	            e.printStackTrace();
 	        }
+		
+		return commitData;
 	}
+	
+	private void writeCommitData(Path path, CommitData stagingAreaChanges) {
+		try (FileOutputStream fileOut = new FileOutputStream(path.toString());
+	            ObjectOutputStream out = new ObjectOutputStream(fileOut)) {
+	            out.writeObject(stagingAreaChanges);
+	    } catch (IOException e) {
+	            e.printStackTrace();
+	    }
+	}
+}
+class CommitData implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    private String message;
+    private List<String> changedFiles;
+    private String parentCommit;
+
+    public CommitData(String message, List<String> changedFiles, String parentCommit) {
+        this.message = message;
+        this.changedFiles = changedFiles;
+        this.parentCommit = parentCommit;
+    }
+
+    @Override
+    public String toString() {
+        return "CommitData{" +
+                "message='" + message + '\'' +
+                ", changedFiles=" + changedFiles +
+                ", parentCommit='" + parentCommit + '\'' +
+                '}';
+    }
+
 }
