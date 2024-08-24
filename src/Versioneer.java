@@ -67,8 +67,16 @@ public class Versioneer {
 		}
 	}
 	
+	// The command that is used to move all of the staging area changes into one final change.
 	public void commit(String message) {
+		
 		List<String> changedFiles = readStagingArea();
+		
+		if(changedFiles.isEmpty()) {
+			System.out.println("Add some changes before commit...");
+			return;
+		}
+		
 		String parentCommit = readParentCommit();
 		
 		CommitData commitData = new CommitData(message, changedFiles, parentCommit);
@@ -77,9 +85,20 @@ public class Versioneer {
 		writeCommitData(commitObjectPath, commitData);
 		writeStagingArea(new ArrayList<String>());
 		try {Files.writeString(headPath, commitHash);}catch(Exception e) {};
-		
-		CommitData cdata = readCommitData(commitObjectPath);
+		System.out.println("Commit successful with commit hash: "+commitHash);
+			
+	}
 	
+	public void log() {
+		String parentCommit = readParentCommit();
+		CommitData commitData = readCommitData(objectsPath.resolve(parentCommit));
+		while(commitData != null) {
+			System.out.println(commitData.getChangedFiles() +" "+commitData.getMessage());
+			if(commitData.getParentCommit() != null && commitData.getParentCommit().length() != 0)
+				commitData = readCommitData(objectsPath.resolve(commitData.getParentCommit()));
+			else 
+				break;
+		}
 	}
 	
 	private String readParentCommit() {
@@ -152,7 +171,7 @@ public class Versioneer {
 	
 	@SuppressWarnings("unchecked")
 	private CommitData readCommitData(Path path) {
-		CommitData commitData = new CommitData("",null,"");
+		CommitData commitData = null;
 		try (FileInputStream fileIn = new FileInputStream(path.toString());
 	             ObjectInputStream in = new ObjectInputStream(fileIn)) {
 			commitData = (CommitData)in.readObject();
@@ -185,7 +204,31 @@ class CommitData implements Serializable {
         this.parentCommit = parentCommit;
     }
 
-    @Override
+    public String getMessage() {
+		return message;
+	}
+
+	public void setMessage(String message) {
+		this.message = message;
+	}
+
+	public List<String> getChangedFiles() {
+		return changedFiles;
+	}
+
+	public void setChangedFiles(List<String> changedFiles) {
+		this.changedFiles = changedFiles;
+	}
+
+	public String getParentCommit() {
+		return parentCommit;
+	}
+
+	public void setParentCommit(String parentCommit) {
+		this.parentCommit = parentCommit;
+	}
+
+	@Override
     public String toString() {
         return "CommitData{" +
                 "message='" + message + '\'' +
