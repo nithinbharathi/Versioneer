@@ -2,7 +2,7 @@
 
 Versioneer is a simple version control system implemented in Java. It allows you to track changes to files in a directory, similar to how Git works, by creating snapshots of file changes. The current implementation supports commands like init, add, commit and log.
 
-Following is an example illustrating the varioud methods avaiable:
+Following is an example illustrating the various methods avaiable:
 
 ```JAVA
 Versioneer versioneer = new Versioneer();
