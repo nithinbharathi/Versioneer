@@ -1,3 +1,4 @@
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -12,6 +13,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 public class Versioneer {
@@ -32,11 +34,9 @@ public class Versioneer {
 	// Method to create the required meta data folders and files that versioneer makes use of.
 	public void init() {
 		try {
-			Files.createDirectory(projectPath);
-			Files.createDirectory(objectsPath);
-
-			Files.createFile(headPath);
-			initializeStagingArea();
+			clearExistingDirectories();
+			createDirectories();			
+			initializeHeadAndStagingArea();
 
 			System.out.println("Versioneer repository initiliazed...");
 		}catch (Exception e){
@@ -45,7 +45,19 @@ public class Versioneer {
 		}		
 	}
 	
-	/*Method that lets users to add the newly introduced changes. This method internally creates a new file within 
+	private void clearExistingDirectories() throws IOException {
+		 Files.walk(this.projectPath)
+         	  .sorted(Comparator.reverseOrder()) // ensure directories are deleted after their contents
+         	  .map(Path::toFile)
+         	  .forEach(File::delete);
+	}
+	
+	private void createDirectories() throws Exception{
+		Files.createDirectory(projectPath);
+		Files.createDirectory(objectsPath);
+	}
+	
+	/* Method that lets users to add the newly introduced changes. This method internally creates a new file within 
 	the .versioneer/OBJECTS folder and the file contains the newly added changes. */
 	public void add(String fileName) {
 		if(validate(fileName)) {
@@ -57,7 +69,8 @@ public class Versioneer {
 				String hashedContent = hashContent(content);
 				
 				Path newPath = objectsPath.resolve(hashedContent);
-				Files.writeString(newPath, content);
+				
+				write(newPath, content);
 				updateStagingArea(hashedContent);
 				
 				System.out.println("Add successful");
@@ -79,21 +92,24 @@ public class Versioneer {
 			return;
 		}
 		
-		String parentCommit = readParentCommit();
+		String parentCommit = readHeadData();
 		
 		CommitData commitData = new CommitData(message, changedFiles, parentCommit, LocalDateTime.now());
 		String commitHash = hashContent(commitData.toString());
 		Path commitObjectPath = objectsPath.resolve(commitHash);
+		
 		writeCommitData(commitObjectPath, commitData);
 		writeStagingArea(new ArrayList<String>());
-		try {Files.writeString(headPath, commitHash);}catch(Exception e) {};
+		writeHeadData(commitHash);
+		
 		System.out.println("Commit successful with commit hash: "+commitHash);
 			
 	}
 	
 	public void log() {
-		String parentCommit = readParentCommit();
+		String parentCommit = readHeadData();
 		CommitData commitData = readCommitData(objectsPath.resolve(parentCommit));
+		
 		while(commitData != null) {
 			System.out.println("Changed Files: "+commitData.getChangedFiles() 
 								+"\nCommit Message: "+commitData.getMessage()
@@ -107,15 +123,11 @@ public class Versioneer {
 		}
 	}
 	
-	private String readParentCommit() {
-		try {
-			return Files.readString(headPath);
-		}catch(Exception e) {
-			return null;
-		}
+	public void showDiff() {
+		
 	}
-	
-	//The method generates the SHA hash of the content passed as a parameter.
+		
+	//The method generates the SHA hash of the content passed as parameter.
 	private String hashContent(String content) {
         StringBuilder hexString = new StringBuilder();
 		try {
@@ -147,54 +159,57 @@ public class Versioneer {
 		writeStagingArea(stagingAreaChanges);
 	}
 	
-	private void initializeStagingArea() {
-		if(!Files.exists(this.stagingAreaPath)) {
-			writeStagingArea(new ArrayList<String>());
-		}
+	private void initializeHeadAndStagingArea() {
+		writeStagingArea(new ArrayList<String>());
+		writeHeadData(null);
+	}
+	
+	private String readHeadData() {
+		return (String)read(this.headPath);
+	}
+
+	
+	private void writeHeadData(String content) {
+		write(this.headPath, content);
 	}
 	
 	@SuppressWarnings("unchecked")
 	private List<String> readStagingArea() {
-		List<String> list = new ArrayList<>();
-		try (FileInputStream fileIn = new FileInputStream(this.stagingAreaPath.toString());
-	             ObjectInputStream in = new ObjectInputStream(fileIn)) {
-	             list = (List<String>) in.readObject();
-	        } catch (IOException | ClassNotFoundException e) {
-	            e.printStackTrace();
-	        }
-		
-		return list;
+		Object stagingAreaObject = read(stagingAreaPath);
+		return (ArrayList<String>)(stagingAreaObject);
 	}
 	
 	private void writeStagingArea(List<String> stagingAreaChanges) {
-		try (FileOutputStream fileOut = new FileOutputStream(this.stagingAreaPath.toString());
-	            ObjectOutputStream out = new ObjectOutputStream(fileOut)) {
-	            out.writeObject(stagingAreaChanges);
-	    } catch (IOException e) {
-	            e.printStackTrace();
-	    }
+		write(stagingAreaPath, stagingAreaChanges);
 	}
 	
-	@SuppressWarnings("unchecked")
-	private CommitData readCommitData(Path path) {
-		CommitData commitData = null;
-		try (FileInputStream fileIn = new FileInputStream(path.toString());
-	             ObjectInputStream in = new ObjectInputStream(fileIn)) {
-			commitData = (CommitData)in.readObject();
-	        } catch (IOException | ClassNotFoundException e) {
-	            e.printStackTrace();
-	        }
-		
-		return commitData;
+	private CommitData readCommitData(Path path) {				
+		return (CommitData)read(path);
 	}
 	
 	private void writeCommitData(Path path, CommitData stagingAreaChanges) {
-		try (FileOutputStream fileOut = new FileOutputStream(path.toString());
-	            ObjectOutputStream out = new ObjectOutputStream(fileOut)) {
-	            out.writeObject(stagingAreaChanges);
-	    } catch (IOException e) {
-	            e.printStackTrace();
-	    }
+		write(path, stagingAreaChanges);
+	}
+	
+	private void write(Path path, Object content) {
+		try(FileOutputStream fileOut = new FileOutputStream(path.toString())){
+			ObjectOutputStream objOut = new ObjectOutputStream(fileOut);
+			objOut.writeObject(content);
+		}catch(Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	private Object read(Path path) {
+		Object readObject = null;
+		try(FileInputStream fileIn = new FileInputStream(path.toString())){
+			ObjectInputStream objIn = new ObjectInputStream(fileIn);
+			readObject = objIn.readObject();
+		}catch(Exception e) {
+			e.printStackTrace();
+		}
+		
+		return readObject;
 	}
 }
 class CommitData implements Serializable {

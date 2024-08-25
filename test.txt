@@ -1,7 +1,0 @@
-Hello
-World
-Test
-Samples
-Some random
-Text
-additionally
