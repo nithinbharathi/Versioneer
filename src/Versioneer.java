@@ -123,8 +123,38 @@ public class Versioneer {
 		}
 	}
 	
-	public void showDiff() {
-		
+	public void showDiff(String commitHash1, String commitHash2) {
+		if(Files.exists(objectsPath.resolve(commitHash1)) && Files.exists(objectsPath.resolve(commitHash2))) {
+			CommitData commitData1 = readCommitData(objectsPath.resolve(commitHash1));
+			CommitData commitData2 = readCommitData(objectsPath.resolve(commitHash2));
+			
+			List<String>filesChanged1 = commitData1.getChangedFiles();
+			List<String>filesChanged2 = commitData2.getChangedFiles();
+			
+			printDiff(filesChanged1, filesChanged2);
+		}else {
+			System.out.println("one of the commit hash or both are invalid");
+		}
+	}
+	
+	// TODO: only changes in the content that was changed should be highlighted.
+	private void printDiff(List<String>files1 , List<String>files2) {
+	   final String BLUE = "\033[0;34m"; 
+	   final String GREEN = "\033[0;32m";   // GREEN
+	   final String RESET = "\033[0m";  // Text Reset
+	       
+		System.out.println("Contents of First Commit: ");
+        for(String fileHash:files1) {
+        	System.out.println("File hash: "+fileHash);
+        	System.out.println(BLUE+""+(String)read(this.objectsPath.resolve(fileHash))+""+RESET);
+        }      
+
+
+        System.out.println("Contents of Second Commit: ");
+        for(String fileHash:files2) {
+        	System.out.println("File hash: "+fileHash);
+        	System.out.println(GREEN +""+(String)read(this.objectsPath.resolve(fileHash))+""+RESET);
+        }
 	}
 		
 	//The method generates the SHA hash of the content passed as parameter.
@@ -212,7 +242,8 @@ public class Versioneer {
 		return readObject;
 	}
 }
-class CommitData implements Serializable {
+
+final class CommitData implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private String message;
