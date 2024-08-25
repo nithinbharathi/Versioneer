@@ -5,7 +5,7 @@ Versioneer is a simple version control system implemented in Java. It allows you
 Following is an example illustrating the varioud methods avaiable:
 
 ```JAVA
-Versioneer versioneer= new Versioneer();
+Versioneer versioneer = new Versioneer();
 
 versioneer.init();	// initializes the versioneer repository locally
 versioneer.add("test.txt");	// adds the contents of the file to the staging area for tracking. Note that the file has to be present in the project's working directory (where .versioneer folder is present)
